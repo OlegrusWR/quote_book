@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -17,7 +18,7 @@ type QuoteHandlers struct {
 func (h *QuoteHandlers) QuoteCreate(w http.ResponseWriter, r *http.Request) {
     var quote models.Quote
     if err := json.NewDecoder(r.Body).Decode(&quote); err != nil {
-        responseWithError(w, http.StatusBadRequest, "invalid data format")
+        responseWithError(w, http.StatusBadRequest, err.Error())
         return
     }
     id := h.Storage.Add(quote)
@@ -29,7 +30,7 @@ func (h *QuoteHandlers) GetQuotes(w http.ResponseWriter, r *http.Request){
 	if author != "" {
 		quotes, err := h.Storage.GetByAuthor(author)
 		if err != nil{
-			responseWithError(w, http.StatusNotFound, "Такой автор не найден")
+			responseWithError(w, http.StatusNotFound, err.Error())
 			return
 		}
 		responseWithJSON(w, http.StatusOK, quotes)
@@ -41,23 +42,25 @@ func (h *QuoteHandlers) GetQuotes(w http.ResponseWriter, r *http.Request){
 }
 
 func (h *QuoteHandlers) GetById(w http.ResponseWriter, r *http.Request){
-
-	vars := mux.Vars(r)
-	idStr, ok := vars["id"]
-	if !ok{
-		responseWithError(w, http.StatusBadRequest, "требуется указать айди")
-	}
-
-	id, err := strconv.Atoi(idStr)
+	id , err:= parseID(w, r)
 	if err != nil{
-		responseWithError(w, http.StatusBadRequest, "неверный формат айди")
+		return
 	}
-
 	quote, err := h.Storage.GetById(id)
 	if err != nil{
 		responseWithError(w, http.StatusNotFound, err.Error())
+		return
 	}
 	responseWithJSON(w, http.StatusOK, quote)
+}
+
+func (h *QuoteHandlers) DeleteById(w http.ResponseWriter, r *http.Request){
+	id, err := parseID(w, r)
+	if err != nil{
+		return
+	}
+	h.Storage.DeleteById(id)
+	responseWithJSON(w, http.StatusOK, "Цитата удалена")
 }
 
 func (h *QuoteHandlers) GetByAuthor(w http.ResponseWriter, r *http.Request){
@@ -65,10 +68,21 @@ func (h *QuoteHandlers) GetByAuthor(w http.ResponseWriter, r *http.Request){
 	author, ok := vars["author"]
 	if !ok{
 		responseWithError(w, http.StatusBadRequest, "требуется указать автора")
+		return
 	}
 	quote, err := h.Storage.GetByAuthor(author)
 	if err != nil{
 		responseWithError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	responseWithJSON(w, http.StatusOK, quote)
+}
+
+func (h *QuoteHandlers) GetRandom(w http.ResponseWriter, r *http.Request){
+	quote, err := h.Storage.GetRandom()
+	if err != nil{
+		responseWithError(w, http.StatusNotFound, err.Error())
+		return
 	}
 	responseWithJSON(w, http.StatusOK, quote)
 }
@@ -81,4 +95,20 @@ func responseWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 
 func responseWithError(w http.ResponseWriter, code int, msg string) {
     responseWithJSON(w, code, map[string]string{"error": msg})
+}
+
+func parseID(w http.ResponseWriter, r *http.Request) (int, error) {
+	vars := mux.Vars(r)
+	idStr, ok := vars["id"]
+	if !ok{
+		responseWithError(w, http.StatusBadRequest, "требуется указать айди")
+		return 0, fmt.Errorf("id не найден")
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil{
+		responseWithError(w, http.StatusBadRequest, "неверный формат айди")
+		return 0, err
+	}
+	return id, nil
 }

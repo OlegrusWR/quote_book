@@ -24,5 +24,7 @@ func (s *Server) configureRouter() {
     handlers := &handlers.QuoteHandlers{Storage: s.Storage}
     s.Router.HandleFunc("/quotes", handlers.QuoteCreate).Methods("POST")
 	s.Router.HandleFunc("/quotes", handlers.GetQuotes).Methods("GET")
-	s.Router.HandleFunc("/quotes/{id}", handlers.GetById).Methods("GET")
+	s.Router.HandleFunc("/quotes/id/{id}", handlers.GetById).Methods("GET")
+	s.Router.HandleFunc("/quotes/random", handlers.GetRandom).Methods("GET")
+	s.Router.HandleFunc("/quotes/{id}", handlers.DeleteById).Methods("DELETE")
 }

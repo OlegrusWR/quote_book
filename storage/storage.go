@@ -1,10 +1,11 @@
 package storage
 
 import (
-    "fmt"
-    "sync"
+	"math/rand"
+	"fmt"
+	"sync"
 
-    "github.com/OlegrusWR/quote_book/models"
+	"github.com/OlegrusWR/quote_book/models"
 )
 
 type Storage struct {
@@ -52,6 +53,12 @@ func (s *Storage) GetById(id int) (models.Quote, error) {
     return models.Quote{}, fmt.Errorf("цитата с айди  %d не найдена", id)
 }
 
+func (s *Storage) DeleteById(id int){
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.quote, id)
+}
+
 func (s *Storage) GetByAuthor(author string) ([]models.Quote, error) {
     s.mu.Lock()
     defer s.mu.Unlock()
@@ -67,3 +74,27 @@ func (s *Storage) GetByAuthor(author string) ([]models.Quote, error) {
     }
     return quoteSlice, nil
 }
+
+func (s *Storage) GetRandom() (models.Quote, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if len(s.quote) == 0{
+		return models.Quote{}, fmt.Errorf("в цитатнике нет цитат")
+	}
+
+	keys := make([]int, 0, len(s.quote))
+	for key := range s.quote{
+		keys = append(keys, key)
+	}
+
+	randomIndex := rand.Intn(len(keys))
+	randomKeys := randomIndex
+	if randomIndex == 0{
+		randomKeys++
+	}
+	
+	return s.quote[randomKeys], nil
+
+}
+
